@@ -74,22 +74,32 @@ LATIN_FONT_CANDIDATES = (
 )
 
 
+def _truetype(path: str, size: int) -> ImageFont.FreeTypeFont:
+    """
+    Use BASIC layout so Linux builds with libraqm/HarfBuzz do not
+    re-shape already reshaped Arabic presentation forms.
+    """
+    try:
+        return ImageFont.truetype(path, size, layout_engine=ImageFont.Layout.BASIC)
+    except TypeError:
+        return ImageFont.truetype(path, size)
+
+
 @lru_cache(maxsize=16)
 def load_font(bold: bool, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Arabic-capable Noto font (Arabic glyphs only in many builds)."""
     path = FONT_BOLD if bold else FONT_REGULAR
     if path.exists():
-        return ImageFont.truetype(str(path), size)
+        return _truetype(str(path), size)
     return load_latin_font(bold, size)
 
 
 @lru_cache(maxsize=16)
 def load_latin_font(bold: bool, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Latin digits / English — Noto Naskh often lacks Latin glyphs."""
-    preferred = LATIN_FONT_CANDIDATES if not bold else LATIN_FONT_CANDIDATES
-    for fallback in preferred:
+    for fallback in LATIN_FONT_CANDIDATES:
         try:
-            return ImageFont.truetype(fallback, size)
+            return _truetype(fallback, size)
         except OSError:
             continue
     return ImageFont.load_default()
