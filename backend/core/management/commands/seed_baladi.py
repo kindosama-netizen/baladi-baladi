@@ -6,7 +6,7 @@ from menu.models import Category
 
 
 class Command(BaseCommand):
-    help = "Seed Baladi Baladi verified brand settings and empty menu categories"
+    help = "Seed Baladi verified brand settings and empty menu categories"
 
     def add_arguments(self, parser):
         parser.add_argument("--admin-user", default="admin")
@@ -15,14 +15,16 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         settings = SiteSettings.load()
-        settings.restaurant_name = "بلدي بلدي - برجر وفطور"
-        settings.restaurant_name_en = "Baladi Baladi"
+        settings.restaurant_name = "بلدي - برجر وفطور"
+        settings.restaurant_name_en = "Baladi"
         settings.tagline = "طعم بلدي .. بمذاق ما بتنساه"
         settings.description = "أشهى أصناف البرجر والفطور، محضّرة بحب لتعيش تجربة طعم مميز"
         settings.hero_headline = "طعم بلدي بمذاق ما بتنساه"
         settings.hero_subtext = "برجر وفطور محضّر بحب في قلب إربد — شارع البتراء"
         settings.phone = "0775051801"
-        settings.address = "اربد / شارع البتراء, Irbid, Jordan"
+        settings.address = "إربد / شارع البتراء, Irbid, Jordan"
+        settings.maps_link = "https://maps.app.goo.gl/KvMyLqQM7YbGLzeQ8"
+        settings.maps_embed_url = "https://www.google.com/maps?q=32.5234797,35.901023&hl=ar&z=18&output=embed"
         settings.facebook_url = "https://www.facebook.com/profile.php?id=61596672111492"
         settings.instagram_url = "https://www.instagram.com/baladibaldi_jo"
         if not settings.working_hours:

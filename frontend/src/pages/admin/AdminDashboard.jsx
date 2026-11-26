@@ -19,7 +19,7 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="font-display text-3xl font-extrabold mb-2">نظرة عامة</h1>
-      <p className="text-smoke mb-8">إدارة مطعم بلدي بلدي بسهولة</p>
+      <p className="text-smoke mb-8">إدارة مطعم بلدي بسهولة</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {cards.map((c) => (
           <Link key={c.label} to={c.to} className="bg-white rounded-2xl p-5 border border-cream-muted hover:border-amber transition">
@@ -31,7 +31,7 @@ export default function AdminDashboard() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <Quick to="/admin/items" label="إضافة صنف جديد" />
         <Quick to="/admin/ads" label="إنشاء إعلان" />
-        <Quick to="/admin/tables" label="توليد QR للطاولات" />
+        <Quick to="/admin/tables" label="تنزيل رمز QR للمنيو" />
         <Quick to="/admin/settings" label="تعديل بيانات المطعم" />
         <a href="/" target="_blank" rel="noreferrer" className="bg-ink text-cream rounded-xl px-4 py-3 font-bold text-center hover:bg-ink-soft">
           معاينة الموقع

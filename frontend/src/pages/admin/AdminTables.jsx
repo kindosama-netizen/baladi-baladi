@@ -2,48 +2,26 @@ import { useEffect, useState } from 'react'
 import api from '../../api/client'
 
 export default function AdminTables() {
-  const [tables, setTables] = useState([])
-  const [number, setNumber] = useState('')
-  const [label, setLabel] = useState('')
-  const [bulk, setBulk] = useState(10)
+  const [menuUrl, setMenuUrl] = useState('')
   const [msg, setMsg] = useState('')
 
-  const load = () => api.get('/tables/').then((r) => setTables(r.data))
-  useEffect(() => { load() }, [])
-
-  async function addTable(e) {
-    e.preventDefault()
-    setMsg('')
-    try {
-      await api.post('/tables/', { number: Number(number), label: label || `طاولة ${number}`, is_active: true })
-      setNumber('')
-      setLabel('')
-      load()
-    } catch (err) {
-      setMsg(JSON.stringify(err.response?.data || err.message))
-    }
-  }
-
-  async function bulkCreate() {
-    setMsg('')
-    const { data } = await api.post('/tables/bulk_create/', { count: Number(bulk) })
-    setMsg(`تم إنشاء ${data.created.length} طاولة. الإجمالي: ${data.total}`)
-    load()
-  }
-
-  async function remove(id) {
-    if (!confirm('حذف الطاولة؟')) return
-    await api.delete(`/tables/${id}/`)
-    load()
-  }
+  useEffect(() => {
+    api.get('/tables/menu_url/').then((r) => setMenuUrl(r.data.menu_url)).catch(() => {
+      api.get('/settings/').then((r) => {
+        const base = (r.data.public_site_url || window.location.origin).replace(/\/$/, '')
+        setMenuUrl(`${base}/menu`)
+      })
+    })
+  }, [])
 
   async function download(path, filename) {
+    setMsg('')
     const token = localStorage.getItem('baladi_access')
     const res = await fetch(`/api${path}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) {
-      setMsg('فشل التنزيل')
+      setMsg('فشل التنزيل — تأكد من تسجيل الدخول')
       return
     }
     const blob = await res.blob()
@@ -57,53 +35,48 @@ export default function AdminTables() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl font-extrabold mb-2">الطاولات ورموز QR</h1>
-      <p className="text-smoke mb-6 text-sm">
-        رموز QR تستخدم رابط الموقع العام من الإعدادات (`PUBLIC_SITE_URL`). بعد النشر على Render حدّث الرابط ثم أعد تنزيل البطاقات.
+      <h1 className="font-display text-3xl font-extrabold mb-2">رمز QR للمنيو</h1>
+      <p className="text-smoke mb-6 text-sm leading-7 max-w-2xl">
+        رمز واحد موحّد لكل طاولات المطعم يفتح المنيو الرقمي مباشرة.
+        حدّث رابط الموقع العام من الإعدادات ثم أعد تنزيل البطاقة قبل الطباعة.
       </p>
-      {msg && <p className="mb-4 text-sm text-ember break-all">{msg}</p>}
+      {msg && <p className="mb-4 text-sm text-ember">{msg}</p>}
 
-      <div className="grid md:grid-cols-2 gap-4 mb-8">
-        <form onSubmit={addTable} className="bg-white rounded-2xl border p-5 space-y-3">
-          <div className="font-bold mb-2">إضافة طاولة</div>
-          <input type="number" required placeholder="رقم الطاولة" value={number} onChange={(e) => setNumber(e.target.value)} className="w-full rounded-xl border px-3 py-2" />
-          <input placeholder="تسمية اختيارية" value={label} onChange={(e) => setLabel(e.target.value)} className="w-full rounded-xl border px-3 py-2" />
-          <button type="submit" className="bg-ink text-cream px-4 py-2 rounded-xl font-bold">إضافة</button>
-        </form>
-        <div className="bg-white rounded-2xl border p-5 space-y-3">
-          <div className="font-bold mb-2">إنشاء سريع 1…N</div>
-          <input type="number" min={1} max={100} value={bulk} onChange={(e) => setBulk(e.target.value)} className="w-full rounded-xl border px-3 py-2" />
-          <button type="button" onClick={bulkCreate} className="bg-amber text-ink px-4 py-2 rounded-xl font-bold">توليد الطاولات</button>
+      <div className="bg-white rounded-3xl border border-cream-muted p-6 md:p-8 mb-6">
+        <div className="text-xs font-bold tracking-wide text-smoke mb-2">رابط المنيو المرتبط بالرمز</div>
+        <a href={menuUrl || '/menu'} target="_blank" rel="noreferrer" className="text-ember font-bold break-all underline underline-offset-4">
+          {menuUrl || '…'}
+        </a>
+
+        <div className="grid sm:grid-cols-3 gap-3 mt-8">
           <button
             type="button"
-            onClick={() => download('/tables/pdf/', 'baladi-table-qr-cards.pdf')}
-            className="block w-full border border-ink px-4 py-2 rounded-xl font-bold"
+            onClick={() => download('/tables/menu_qr/', 'baladi-menu-qr.png')}
+            className="rounded-2xl bg-cream-muted px-4 py-4 font-bold hover:bg-cream transition"
           >
-            تنزيل PDF بطاقات الطباعة (كل الطاولات)
+            تنزيل QR عالي الجودة
+          </button>
+          <button
+            type="button"
+            onClick={() => download('/tables/menu_card/', 'baladi-menu-qr-card.png')}
+            className="rounded-2xl bg-amber/40 px-4 py-4 font-bold hover:bg-amber/55 transition"
+          >
+            بطاقة طباعة PNG
+          </button>
+          <button
+            type="button"
+            onClick={() => download('/tables/menu_pdf/', 'baladi-menu-qr-cards.pdf')}
+            className="rounded-2xl bg-ink text-cream px-4 py-4 font-bold hover:bg-ink-soft transition"
+          >
+            PDF للطباعة (4 بطاقات A6)
           </button>
         </div>
-      </div>
 
-      <div className="space-y-3">
-        {tables.map((t) => (
-          <div key={t.id} className="bg-white rounded-xl border px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="font-bold">طاولة {t.number} {t.label ? `— ${t.label}` : ''}</div>
-              <a href={t.menu_url} target="_blank" rel="noreferrer" className="text-xs text-ember underline break-all">{t.menu_url}</a>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className="text-sm px-3 py-1.5 rounded-lg bg-cream-muted" onClick={() => download(`/tables/${t.id}/qr/`, `table-${t.number}-qr.png`)}>
-                QR PNG
-              </button>
-              <button type="button" className="text-sm px-3 py-1.5 rounded-lg bg-amber/30 font-bold" onClick={() => download(`/tables/${t.id}/card/`, `table-${t.number}-card.png`)}>
-                بطاقة طباعة
-              </button>
-              <button type="button" className="text-sm px-3 py-1.5 rounded-lg bg-ember/10 text-ember" onClick={() => remove(t.id)}>
-                حذف
-              </button>
-            </div>
-          </div>
-        ))}
+        <ul className="mt-6 text-sm text-smoke space-y-2 list-disc pr-5">
+          <li>حجم البطاقة للطباعة: 105×148 مم (A6) بدقة 300 DPI</li>
+          <li>اطبع على ورق سميك أو ضع البطاقة داخل حامل طاولة</li>
+          <li>نفس الرمز يُستخدم على كل الطاولات — لا حاجة لرمز مختلف لكل طاولة</li>
+        </ul>
       </div>
     </div>
   )

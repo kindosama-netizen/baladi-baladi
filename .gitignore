@@ -32,3 +32,6 @@ admin_credentials.txt
 backend/media/
 backend/staticfiles/
 backend/db.sqlite3
+
+production_qr_samples/
+_ads_debug.json

@@ -278,14 +278,16 @@ class Command(BaseCommand):
 
     def _seed_settings(self, public_url: str):
         s = SiteSettings.load()
-        s.restaurant_name = "بلدي بلدي - برجر وفطور"
-        s.restaurant_name_en = "Baladi Baladi"
+        s.restaurant_name = "بلدي - برجر وفطور"
+        s.restaurant_name_en = "Baladi"
         s.tagline = "طعم بلدي .. بمذاق ما بتنساه"
         s.description = "أشهى أصناف البرجر والفطور، محضّرة بحب لتعيش تجربة طعم مميز"
         s.hero_headline = "طعم بلدي بمذاق ما بتنساه"
         s.hero_subtext = "برجر وفطور ومشاوي محضّرة بحب في قلب إربد — شارع البتراء"
         s.phone = "0775051801"
-        s.address = "اربد / شارع البتراء, Irbid, Jordan"
+        s.address = "إربد / شارع البتراء, Irbid, Jordan"
+        s.maps_link = "https://maps.app.goo.gl/KvMyLqQM7YbGLzeQ8"
+        s.maps_embed_url = "https://www.google.com/maps?q=32.5234797,35.901023&hl=ar&z=18&output=embed"
         s.facebook_url = "https://www.facebook.com/profile.php?id=61596672111492"
         s.instagram_url = "https://www.instagram.com/baladibaldi_jo"
         s.working_hours = {

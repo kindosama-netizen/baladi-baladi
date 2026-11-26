@@ -2,8 +2,8 @@ from django.db import models
 
 
 class SiteSettings(models.Model):
-    restaurant_name = models.CharField(max_length=200, default="بلدي بلدي - برجر وفطور")
-    restaurant_name_en = models.CharField(max_length=200, default="Baladi Baladi", blank=True)
+    restaurant_name = models.CharField(max_length=200, default="بلدي - برجر وفطور")
+    restaurant_name_en = models.CharField(max_length=200, default="Baladi", blank=True)
     tagline = models.CharField(max_length=300, default="طعم بلدي .. بمذاق ما بتنساه", blank=True)
     description = models.TextField(
         default="أشهى أصناف البرجر والفطور، محضّرة بحب لتعيش تجربة طعم مميز",
@@ -23,8 +23,14 @@ class SiteSettings(models.Model):
     about_image_url = models.URLField(blank=True)
     phone = models.CharField(max_length=40, default="0775051801", blank=True)
     address = models.CharField(max_length=300, default="اربد / شارع البتراء, Irbid, Jordan", blank=True)
-    maps_embed_url = models.URLField(blank=True)
-    maps_link = models.URLField(blank=True)
+    maps_embed_url = models.URLField(
+        blank=True,
+        default="https://www.google.com/maps?q=32.5234797,35.901023&hl=ar&z=18&output=embed",
+    )
+    maps_link = models.URLField(
+        blank=True,
+        default="https://maps.app.goo.gl/KvMyLqQM7YbGLzeQ8",
+    )
     facebook_url = models.URLField(
         default="https://www.facebook.com/profile.php?id=61596672111492",
         blank=True,

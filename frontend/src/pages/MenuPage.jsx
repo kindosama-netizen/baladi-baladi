@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Flame, Star } from 'lucide-react'
 import api from '../api/client'
@@ -7,11 +6,10 @@ import { useSettings } from '../context/SettingsContext'
 
 export default function MenuPage() {
   const settings = useSettings()
-  const [params] = useSearchParams()
-  const table = params.get('table')
   const [categories, setCategories] = useState([])
   const [active, setActive] = useState(null)
   const [loading, setLoading] = useState(true)
+  const brand = (settings?.restaurant_name || 'بلدي').split(' - ')[0]
 
   useEffect(() => {
     setLoading(true)
@@ -39,25 +37,17 @@ export default function MenuPage() {
   )
 
   return (
-    <div className="bg-cream min-h-screen pt-24 pb-16">
-      <div className="mx-auto max-w-lg px-4">
-        {table && (
-          <div className="mb-4 rounded-2xl bg-ink text-cream px-4 py-3 text-center border border-amber/30">
-            <div className="text-amber text-xs font-bold tracking-wide">مرحباً بكم</div>
-            <div className="font-display text-lg font-bold">طاولة رقم {table}</div>
-          </div>
-        )}
-
-        <div className="text-center mb-6">
-          <h1 className="font-display text-3xl font-extrabold text-ink">
-            منيو {settings?.restaurant_name?.split(' - ')[0] || 'بلدي بلدي'}
-          </h1>
-          <p className="text-smoke text-sm mt-1">{settings?.tagline}</p>
+    <div className="bg-cream min-h-screen pb-20 overflow-x-hidden">
+      <div className="mx-auto max-w-lg px-4 pt-6">
+        <div className="text-center mb-5">
+          <p className="text-ember text-xs font-bold tracking-[0.25em] mb-1">BALADI</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-ink">منيو {brand}</h1>
+          <p className="text-smoke text-sm mt-1.5 leading-6">{settings?.tagline || 'طعم بلدي .. بمذاق ما بتنساه'}</p>
         </div>
 
-        {/* Sticky category nav */}
-        <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-cream/95 backdrop-blur border-b border-cream-muted mb-5">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {/* Sticky category chips — thumb-friendly */}
+        <div className="sticky top-[3.75rem] z-20 -mx-4 px-4 py-2.5 bg-cream/95 backdrop-blur-md border-b border-cream-muted mb-4">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar touch-pan-x pb-0.5">
             {categories.map((cat) => (
               <button
                 key={cat.id}
@@ -66,9 +56,9 @@ export default function MenuPage() {
                   setActive(cat.id)
                   window.history.replaceState(null, '', `#cat-${cat.id}`)
                 }}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition ${
+                className={`shrink-0 min-h-11 px-4 py-2.5 rounded-full text-sm font-bold transition active:scale-[0.97] ${
                   active === cat.id
-                    ? 'bg-ink text-cream'
+                    ? 'bg-ink text-cream shadow-sm'
                     : 'bg-white text-ink border border-cream-muted'
                 }`}
               >
@@ -87,11 +77,11 @@ export default function MenuPage() {
         {activeCategory && (
           <motion.div
             key={activeCategory.id}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.22 }}
           >
-            <h2 className="font-display text-xl font-bold mb-4 text-ink">{activeCategory.name_ar}</h2>
+            <h2 className="font-display text-xl font-bold mb-3.5 text-ink">{activeCategory.name_ar}</h2>
             <div className="space-y-3">
               {(activeCategory.items || []).length === 0 && (
                 <p className="text-smoke text-sm border border-dashed border-cream-muted rounded-xl p-6 text-center">
@@ -101,11 +91,11 @@ export default function MenuPage() {
               {(activeCategory.items || []).map((item) => (
                 <article
                   key={item.id}
-                  className={`flex gap-3 bg-white rounded-2xl border border-cream-muted p-3 ${
+                  className={`flex gap-3 bg-white rounded-2xl border border-cream-muted/90 p-3 shadow-sm ${
                     !item.is_available ? 'opacity-55' : ''
                   }`}
                 >
-                  <div className="w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-ink relative">
+                  <div className="w-[5.5rem] h-[5.5rem] sm:w-24 sm:h-24 shrink-0 rounded-xl overflow-hidden bg-ink relative">
                     {item.image ? (
                       <img src={item.image} alt={item.name_ar} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
@@ -117,15 +107,15 @@ export default function MenuPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 py-0.5">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-display font-bold text-base leading-snug">{item.name_ar}</h3>
+                      <h3 className="font-display font-bold text-[15px] sm:text-base leading-snug">{item.name_ar}</h3>
                       <span className="text-ember font-bold text-sm whitespace-nowrap">{item.price} د.أ</span>
                     </div>
                     {item.description_ar && (
                       <p className="text-smoke text-xs leading-5 mt-1 line-clamp-2">{item.description_ar}</p>
                     )}
-                    <div className="flex gap-1 mt-2">
+                    <div className="flex flex-wrap gap-1 mt-2">
                       {item.is_popular && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] bg-ember/10 text-ember px-1.5 py-0.5 rounded-full font-bold">
                           <Flame size={10} /> شائع

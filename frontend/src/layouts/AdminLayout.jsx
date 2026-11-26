@@ -15,7 +15,7 @@ const links = [
   { to: '/admin/categories', label: 'التصنيفات', icon: FolderOpen },
   { to: '/admin/items', label: 'أصناف المنيو', icon: UtensilsCrossed },
   { to: '/admin/ads', label: 'الإعلانات', icon: Megaphone },
-  { to: '/admin/tables', label: 'الطاولات و QR', icon: QrCode },
+  { to: '/admin/tables', label: 'رمز QR للمنيو', icon: QrCode },
   { to: '/admin/settings', label: 'إعدادات الموقع', icon: Settings },
 ]
 
@@ -26,7 +26,7 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-cream-muted/40 flex flex-col md:flex-row" dir="rtl">
       <aside className="md:w-64 bg-ink text-cream shrink-0">
         <div className="p-5 border-b border-cream/10">
-          <div className="font-display text-xl font-bold text-amber">بلدي بلدي</div>
+          <div className="font-display text-xl font-bold text-amber">بلدي</div>
           <div className="text-xs text-cream/50 mt-1">لوحة التحكم</div>
         </div>
         <nav className="p-3 space-y-1">

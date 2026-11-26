@@ -32,7 +32,7 @@ export default function AdminLogin() {
     <div className="min-h-screen texture-warm grid place-items-center px-4" dir="rtl">
       <form onSubmit={onSubmit} className="w-full max-w-md bg-cream rounded-3xl p-8 shadow-2xl">
         <div className="text-center mb-8">
-          <div className="font-display text-3xl font-extrabold text-ink">بلدي بلدي</div>
+          <div className="font-display text-3xl font-extrabold text-ink">بلدي</div>
           <p className="text-smoke text-sm mt-1">دخول لوحة التحكم</p>
         </div>
         {error && <div className="mb-4 text-sm text-ember bg-ember/10 rounded-xl px-3 py-2">{String(error)}</div>}

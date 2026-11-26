@@ -17,4 +17,5 @@ class RestaurantTable(models.Model):
         return self.label or f"طاولة {self.number}"
 
     def menu_url(self, base_url: str) -> str:
-        return f"{base_url.rstrip('/')}/menu?table={self.number}"
+        # Unified restaurant menu QR — same URL for every table.
+        return f"{base_url.rstrip('/')}/menu"
