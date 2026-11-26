@@ -17,4 +17,13 @@ echo "==> Collectstatic + migrate"
 python manage.py collectstatic --no-input
 python manage.py migrate --no-input
 
+# Seed demo catalog + admin (idempotent). Password from ADMIN_PASSWORD env.
+if [ -n "${ADMIN_PASSWORD:-}" ]; then
+  echo "==> Seeding demo menu + admin user"
+  python manage.py seed_demo_menu --skip-images \
+    --admin-user "${ADMIN_USER:-admin}" \
+    --admin-password "$ADMIN_PASSWORD" \
+    --public-site-url "${PUBLIC_SITE_URL:-}"
+fi
+
 echo "==> Build complete"
