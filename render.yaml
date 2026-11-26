@@ -1,0 +1,44 @@
+# Render Blueprint — Baladi Baladi
+# Free-tier notes:
+# - Web service sleeps after inactivity (cold starts)
+# - Ephemeral disk: configure Cloudinary (USE_CLOUDINARY=True)
+# - Free PostgreSQL may expire after ~90 days unless upgraded
+
+databases:
+  - name: baladi-baladi-db
+    plan: free
+    databaseName: baladi
+    user: baladi
+
+services:
+  - type: web
+    name: baladi-baladi
+    runtime: python
+    plan: free
+    buildCommand: chmod +x backend/build.sh && ./backend/build.sh
+    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: USE_CLOUDINARY
+        value: "True"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: baladi-baladi-db
+          property: connectionString
+      - key: PUBLIC_SITE_URL
+        sync: false
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
