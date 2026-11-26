@@ -16,8 +16,11 @@ class SiteSettings(models.Model):
         blank=True,
     )
     logo = models.ImageField(upload_to="brand/", blank=True, null=True)
+    logo_url = models.URLField(blank=True)
     hero_image = models.ImageField(upload_to="brand/", blank=True, null=True)
+    hero_image_url = models.URLField(blank=True)
     about_image = models.ImageField(upload_to="brand/", blank=True, null=True)
+    about_image_url = models.URLField(blank=True)
     phone = models.CharField(max_length=40, default="0775051801", blank=True)
     address = models.CharField(max_length=300, default="اربد / شارع البتراء, Irbid, Jordan", blank=True)
     maps_embed_url = models.URLField(blank=True)

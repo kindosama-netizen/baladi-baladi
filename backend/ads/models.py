@@ -11,6 +11,7 @@ class Advertisement(models.Model):
     title_ar = models.CharField(max_length=200)
     description_ar = models.TextField(blank=True)
     image = models.ImageField(upload_to="ads/", blank=True, null=True)
+    image_url = models.URLField(blank=True)
     promo_price = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     discount_percent = models.PositiveIntegerField(null=True, blank=True)
     cta_text = models.CharField(max_length=100, blank=True, default="اطلب الآن")
@@ -30,6 +31,14 @@ class Advertisement(models.Model):
 
     def __str__(self):
         return self.title_ar
+
+    def resolve_image(self, request=None):
+        if self.image:
+            url = self.image.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return self.image_url or None
 
     @property
     def is_currently_visible(self):
