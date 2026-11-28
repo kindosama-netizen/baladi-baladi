@@ -1,9 +1,44 @@
-import { supabase, PUBLIC_SITE_URL } from '../lib/supabase'
+import {
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth'
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore'
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
+import { auth, db, PUBLIC_SITE_URL, storage } from '../lib/firebase'
+
+const SETTINGS_ID = 'main'
+
+function serializeTime(v) {
+  if (!v) return v
+  if (typeof v === 'string') return v
+  if (v?.toDate) return v.toDate().toISOString()
+  return v
+}
+
+function mapRow(row) {
+  if (!row) return row
+  const out = { ...row, id: row.id }
+  if (out.start_at) out.start_at = serializeTime(out.start_at)
+  if (out.end_at) out.end_at = serializeTime(out.end_at)
+  if (out.created_at) out.created_at = serializeTime(out.created_at)
+  if (out.updated_at) out.updated_at = serializeTime(out.updated_at)
+  return out
+}
 
 function mapItem(row) {
   if (!row) return row
   return {
-    ...row,
+    ...mapRow(row),
     image: row.image_url || row.image || null,
     price: row.price != null ? String(row.price) : row.price,
   }
@@ -12,7 +47,7 @@ function mapItem(row) {
 function mapCat(row) {
   if (!row) return row
   return {
-    ...row,
+    ...mapRow(row),
     image: row.image_url || row.image || null,
     items: Array.isArray(row.menu_items) ? row.menu_items.map(mapItem) : row.items,
   }
@@ -21,10 +56,10 @@ function mapCat(row) {
 function mapAd(row) {
   if (!row) return row
   const now = Date.now()
-  const startOk = !row.start_at || new Date(row.start_at).getTime() <= now
-  const endOk = !row.end_at || new Date(row.end_at).getTime() >= now
+  const startOk = !row.start_at || new Date(serializeTime(row.start_at)).getTime() <= now
+  const endOk = !row.end_at || new Date(serializeTime(row.end_at)).getTime() >= now
   return {
-    ...row,
+    ...mapRow(row),
     image: row.image_url || row.image || null,
     is_currently_visible: Boolean(row.is_active && startOk && endOk),
   }
@@ -33,7 +68,7 @@ function mapAd(row) {
 function mapSettings(row) {
   if (!row) return row
   return {
-    ...row,
+    ...mapRow(row),
     logo: row.logo_url || null,
     hero_image: row.hero_image_url || null,
     about_image: row.about_image_url || null,
@@ -41,34 +76,61 @@ function mapSettings(row) {
   }
 }
 
-export async function login(email, password) {
-  // Support username "admin" by mapping to configured admin email
-  const emailOrUser = email.includes('@') ? email : `${email}@baladi.local`
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: emailOrUser,
-    password,
+function authThrow(error) {
+  const message = error?.message || 'Request failed'
+  throw Object.assign(new Error(message), {
+    response: { data: { detail: message } },
   })
-  if (error) {
-    // try raw email if mapping failed
-    const retry = await supabase.auth.signInWithPassword({ email, password })
-    if (retry.error) throw Object.assign(new Error(retry.error.message), { response: { data: { detail: retry.error.message } } })
-    return retry.data
+}
+
+async function getSettingsDoc() {
+  const snap = await getDoc(doc(db, 'site_settings', SETTINGS_ID))
+  if (!snap.exists()) return null
+  return mapSettings({ id: snap.id, ...snap.data() })
+}
+
+async function fetchCollection(name) {
+  const snap = await getDocs(collection(db, name))
+  return snap.docs.map((d) => mapRow({ id: d.id, ...d.data() }))
+}
+
+function sortByOrder(rows) {
+  return rows.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+}
+
+export async function login(email, password) {
+  const emailOrUser = email.includes('@') ? email : `${email}@baladi-restaurant.app`
+  try {
+    const cred = await signInWithEmailAndPassword(auth, emailOrUser, password)
+    return { user: cred.user, session: { user: cred.user } }
+  } catch (first) {
+    if (emailOrUser !== email) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password)
+        return { user: cred.user, session: { user: cred.user } }
+      } catch (retry) {
+        authThrow(retry)
+      }
+    }
+    authThrow(first)
   }
-  return data
 }
 
 export async function logout() {
-  await supabase.auth.signOut()
+  await signOut(auth)
 }
 
 export async function isLoggedIn() {
-  const { data } = await supabase.auth.getSession()
-  return Boolean(data.session)
+  await auth.authStateReady()
+  return Boolean(auth.currentUser)
 }
 
 export async function getSession() {
-  const { data } = await supabase.auth.getSession()
-  return data.session
+  await auth.authStateReady()
+  const user = auth.currentUser
+  if (!user) return null
+  const token = await user.getIdToken()
+  return { user, access_token: token }
 }
 
 /** Axios-like thin API used by existing pages */
@@ -78,31 +140,31 @@ const api = {
     const params = new URLSearchParams(query)
 
     if (resource === 'settings/' || resource === 'settings') {
-      const { data, error } = await supabase.from('site_settings').select('*').eq('id', 1).single()
-      if (error) throw error
-      return { data: mapSettings(data) }
+      const data = await getSettingsDoc()
+      if (!data) throw new Error('Site settings not found')
+      return { data }
     }
 
     if (resource === 'admin/settings/' || resource === 'admin/settings') {
-      const { data, error } = await supabase.from('site_settings').select('*').eq('id', 1).single()
-      if (error) throw error
-      return { data: mapSettings(data) }
+      const data = await getSettingsDoc()
+      if (!data) throw new Error('Site settings not found')
+      return { data }
     }
 
     if (resource === 'admin/stats/' || resource === 'admin/stats') {
       const [cats, items, ads] = await Promise.all([
-        supabase.from('categories').select('id,is_active'),
-        supabase.from('menu_items').select('id,is_available'),
-        supabase.from('advertisements').select('id,is_active'),
+        fetchCollection('categories'),
+        fetchCollection('menu_items'),
+        fetchCollection('advertisements'),
       ])
       return {
         data: {
-          categories: cats.data?.length || 0,
-          active_categories: cats.data?.filter((c) => c.is_active).length || 0,
-          menu_items: items.data?.length || 0,
-          available_items: items.data?.filter((i) => i.is_available).length || 0,
-          advertisements: ads.data?.length || 0,
-          active_advertisements: ads.data?.filter((a) => a.is_active).length || 0,
+          categories: cats.length,
+          active_categories: cats.filter((c) => c.is_active).length,
+          menu_items: items.length,
+          available_items: items.filter((i) => i.is_available).length,
+          advertisements: ads.length,
+          active_advertisements: ads.filter((a) => a.is_active).length,
           tables: 0,
           active_tables: 0,
         },
@@ -111,27 +173,26 @@ const api = {
 
     if (resource.startsWith('categories')) {
       const includeItems = params.get('include_items') === '1'
-      let q = supabase.from('categories').select(includeItems ? '*, menu_items(*)' : '*').order('sort_order')
-      const { data, error } = await q
-      if (error) throw error
-      const rows = (data || []).map((c) => {
-        const mapped = mapCat(c)
-        if (includeItems && Array.isArray(c.menu_items)) {
-          mapped.items = c.menu_items
-            .slice()
-            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-            .map(mapItem)
-          mapped.items_count = mapped.items.length
-        } else {
-          mapped.items_count = mapped.items_count ?? 0
-        }
-        return mapped
-      })
-      // attach counts when not including items
-      if (!includeItems) {
-        const { data: counts } = await supabase.from('menu_items').select('category_id')
+      const [catRows, itemRows] = await Promise.all([
+        fetchCollection('categories'),
+        includeItems || !params.get('include_items') ? fetchCollection('menu_items') : Promise.resolve([]),
+      ])
+      let rows = sortByOrder(catRows).map(mapCat)
+      if (includeItems) {
+        const byCat = {}
+        sortByOrder(itemRows).forEach((item) => {
+          const cid = item.category_id
+          if (!byCat[cid]) byCat[cid] = []
+          byCat[cid].push(mapItem(item))
+        })
+        rows = rows.map((c) => ({
+          ...c,
+          items: byCat[c.id] || [],
+          items_count: (byCat[c.id] || []).length,
+        }))
+      } else {
         const map = {}
-        ;(counts || []).forEach((r) => {
+        itemRows.forEach((r) => {
           map[r.category_id] = (map[r.category_id] || 0) + 1
         })
         rows.forEach((r) => {
@@ -142,24 +203,24 @@ const api = {
     }
 
     if (resource.startsWith('menu-items')) {
-      const { data, error } = await supabase.from('menu_items').select('*, categories(name_ar)').order('sort_order')
-      if (error) throw error
+      const [itemRows, catRows] = await Promise.all([
+        fetchCollection('menu_items'),
+        fetchCollection('categories'),
+      ])
+      const names = Object.fromEntries(catRows.map((c) => [c.id, c.name_ar]))
       return {
-        data: (data || []).map((row) => ({
+        data: sortByOrder(itemRows).map((row) => ({
           ...mapItem(row),
           category: row.category_id,
-          category_name: row.categories?.name_ar,
+          category_name: names[row.category_id],
         })),
       }
     }
 
     if (resource.startsWith('advertisements')) {
+      let rows = sortByOrder(await fetchCollection('advertisements')).map(mapAd)
       const placement = params.get('placement')
-      let q = supabase.from('advertisements').select('*').order('sort_order')
-      if (placement) q = q.eq('placement', placement)
-      const { data, error } = await q
-      if (error) throw error
-      let rows = (data || []).map(mapAd)
+      if (placement) rows = rows.filter((a) => a.placement === placement)
       if (params.get('preview') !== '1') {
         rows = rows.filter((a) => a.is_currently_visible)
       }
@@ -167,8 +228,8 @@ const api = {
     }
 
     if (resource === 'tables/menu_url/' || resource === 'tables/menu_url') {
-      const { data } = await supabase.from('site_settings').select('public_site_url').eq('id', 1).single()
-      const base = (data?.public_site_url || PUBLIC_SITE_URL || window.location.origin).replace(/\/$/, '')
+      const settings = await getSettingsDoc()
+      const base = (settings?.public_site_url || PUBLIC_SITE_URL || window.location.origin).replace(/\/$/, '')
       return { data: { menu_url: `${base}/menu` } }
     }
 
@@ -184,24 +245,24 @@ const api = {
     }
 
     if (resource === 'categories') {
-      const payload = normalizeCat(body)
-      const { data, error } = await supabase.from('categories').insert(payload).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapCat(data) }
+      const payload = withTimestamps(normalizeCat(body), true)
+      const refCol = await addDoc(collection(db, 'categories'), payload)
+      const snap = await getDoc(refCol)
+      return { data: mapCat({ id: snap.id, ...snap.data() }) }
     }
 
     if (resource === 'menu-items') {
-      const payload = normalizeItem(body)
-      const { data, error } = await supabase.from('menu_items').insert(payload).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapItem(data) }
+      const payload = withTimestamps(normalizeItem(body), true)
+      const refCol = await addDoc(collection(db, 'menu_items'), payload)
+      const snap = await getDoc(refCol)
+      return { data: mapItem({ id: snap.id, ...snap.data() }) }
     }
 
     if (resource === 'advertisements') {
-      const payload = normalizeAd(body)
-      const { data, error } = await supabase.from('advertisements').insert(payload).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapAd(data) }
+      const payload = withTimestamps(normalizeAd(body), true)
+      const refCol = await addDoc(collection(db, 'advertisements'), payload)
+      const snap = await getDoc(refCol)
+      return { data: mapAd({ id: snap.id, ...snap.data() }) }
     }
 
     throw new Error(`Unknown POST ${path}`)
@@ -212,34 +273,38 @@ const api = {
     body = await hydrateUploads(body)
 
     if (clean === 'admin/settings') {
-      const payload = normalizeSettings(body)
-      const { data, error } = await supabase.from('site_settings').update(payload).eq('id', 1).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapSettings(data) }
+      const payload = withTimestamps(normalizeSettings(body), false)
+      const refDoc = doc(db, 'site_settings', SETTINGS_ID)
+      await setDoc(refDoc, payload, { merge: true })
+      const snap = await getDoc(refDoc)
+      return { data: mapSettings({ id: snap.id, ...snap.data() }) }
     }
 
     if (clean.startsWith('categories/')) {
-      const id = Number(clean.split('/')[1])
-      const payload = normalizeCat(body)
-      const { data, error } = await supabase.from('categories').update(payload).eq('id', id).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapCat(data) }
+      const id = clean.split('/')[1]
+      const payload = withTimestamps(normalizeCat(body), false)
+      const refDoc = doc(db, 'categories', id)
+      await updateDoc(refDoc, payload)
+      const snap = await getDoc(refDoc)
+      return { data: mapCat({ id: snap.id, ...snap.data() }) }
     }
 
     if (clean.startsWith('menu-items/')) {
-      const id = Number(clean.split('/')[1])
-      const payload = normalizeItem(body)
-      const { data, error } = await supabase.from('menu_items').update(payload).eq('id', id).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapItem(data) }
+      const id = clean.split('/')[1]
+      const payload = withTimestamps(normalizeItem(body), false)
+      const refDoc = doc(db, 'menu_items', id)
+      await updateDoc(refDoc, payload)
+      const snap = await getDoc(refDoc)
+      return { data: mapItem({ id: snap.id, ...snap.data() }) }
     }
 
     if (clean.startsWith('advertisements/')) {
-      const id = Number(clean.split('/')[1])
-      const payload = normalizeAd(body)
-      const { data, error } = await supabase.from('advertisements').update(payload).eq('id', id).select().single()
-      if (error) throw wrapError(error)
-      return { data: mapAd(data) }
+      const id = clean.split('/')[1]
+      const payload = withTimestamps(normalizeAd(body), false)
+      const refDoc = doc(db, 'advertisements', id)
+      await updateDoc(refDoc, payload)
+      const snap = await getDoc(refDoc)
+      return { data: mapAd({ id: snap.id, ...snap.data() }) }
     }
 
     throw new Error(`Unknown PATCH ${path}`)
@@ -253,18 +318,18 @@ const api = {
       'menu-items': 'menu_items',
       advertisements: 'advertisements',
     }
-    const db = tableMap[table]
-    if (!db) throw new Error(`Unknown DELETE ${path}`)
-    const { error } = await supabase.from(db).delete().eq('id', Number(id))
-    if (error) throw error
+    const coll = tableMap[table]
+    if (!coll) throw new Error(`Unknown DELETE ${path}`)
+    await deleteDoc(doc(db, coll, id))
     return { data: null }
   },
 }
 
-function wrapError(error) {
-  return Object.assign(new Error(error.message || 'Request failed'), {
-    response: { data: error },
-  })
+function withTimestamps(payload, isCreate) {
+  const out = { ...payload }
+  out.updated_at = serverTimestamp()
+  if (isCreate) out.created_at = serverTimestamp()
+  return out
 }
 
 async function hydrateUploads(body) {
@@ -318,7 +383,7 @@ function normalizeCat(body) {
 function normalizeItem(body) {
   const b = fromFormData(body)
   return {
-    category_id: Number(b.category || b.category_id),
+    category_id: String(b.category ?? b.category_id ?? ''),
     name_ar: b.name_ar,
     description_ar: b.description_ar || '',
     price: Number(b.price || 0),
@@ -373,11 +438,10 @@ function truthy(v) {
 export async function uploadImage(file, folder = 'menu') {
   if (!file) return ''
   const ext = file.name.split('.').pop() || 'jpg'
-  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const { error } = await supabase.storage.from('media').upload(path, file, { upsert: false })
-  if (error) throw error
-  const { data } = supabase.storage.from('media').getPublicUrl(path)
-  return data.publicUrl
+  const path = `media/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const storageRef = ref(storage, path)
+  await uploadBytes(storageRef, file, { contentType: file.type || undefined })
+  return getDownloadURL(storageRef)
 }
 
 export default api

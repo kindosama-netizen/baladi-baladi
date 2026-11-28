@@ -1,10 +1,11 @@
 import QRCode from 'qrcode'
 import { jsPDF } from 'jspdf'
-import { PUBLIC_SITE_URL } from './supabase'
-import { supabase } from './supabase'
+import { doc, getDoc } from 'firebase/firestore'
+import { db, PUBLIC_SITE_URL } from './firebase'
 
 export async function getMenuUrl() {
-  const { data } = await supabase.from('site_settings').select('public_site_url, restaurant_name, restaurant_name_en, tagline, phone, address').eq('id', 1).single()
+  const snap = await getDoc(doc(db, 'site_settings', 'main'))
+  const data = snap.exists() ? snap.data() : {}
   const base = (data?.public_site_url || PUBLIC_SITE_URL || window.location.origin).replace(/\/$/, '')
   return {
     menuUrl: `${base}/menu`,
