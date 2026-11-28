@@ -13,8 +13,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore'
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
-import { auth, db, PUBLIC_SITE_URL, storage } from '../lib/firebase'
+import { auth, db, PUBLIC_SITE_URL } from '../lib/firebase'
 
 const SETTINGS_ID = 'main'
 
@@ -437,11 +436,16 @@ function truthy(v) {
 
 export async function uploadImage(file, folder = 'menu') {
   if (!file) return ''
-  const ext = file.name.split('.').pop() || 'jpg'
-  const path = `media/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const storageRef = ref(storage, path)
-  await uploadBytes(storageRef, file, { contentType: file.type || undefined })
-  return getDownloadURL(storageRef)
+  // Firebase Storage requires Blaze billing; use free Catbox hosting for persistent uploads.
+  const form = new FormData()
+  form.append('reqtype', 'fileupload')
+  form.append('fileToUpload', file, file.name || `${folder}-${Date.now()}.jpg`)
+  const res = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: form })
+  const url = (await res.text()).trim()
+  if (!res.ok || !/^https?:\/\//i.test(url)) {
+    throw new Error(url || 'Image upload failed')
+  }
+  return url
 }
 
 export default api
