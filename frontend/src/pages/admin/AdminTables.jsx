@@ -1,36 +1,29 @@
 import { useEffect, useState } from 'react'
-import api from '../../api/client'
+import { downloadBlob, generateMenuCardPngBlob, generateMenuPdfBlob, generateQrPngBlob, getMenuUrl } from '../../lib/qr'
 
 export default function AdminTables() {
   const [menuUrl, setMenuUrl] = useState('')
   const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState('')
 
   useEffect(() => {
-    api.get('/tables/menu_url/').then((r) => setMenuUrl(r.data.menu_url)).catch(() => {
-      api.get('/settings/').then((r) => {
-        const base = (r.data.public_site_url || window.location.origin).replace(/\/$/, '')
-        setMenuUrl(`${base}/menu`)
-      })
-    })
+    getMenuUrl()
+      .then((r) => setMenuUrl(r.menuUrl))
+      .catch(() => setMenuUrl(`${window.location.origin}/menu`))
   }, [])
 
-  async function download(path, filename) {
+  async function run(label, fn, filename) {
     setMsg('')
-    const token = localStorage.getItem('baladi_access')
-    const res = await fetch(`/api${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) {
-      setMsg('فشل التنزيل — تأكد من تسجيل الدخول')
-      return
+    setBusy(label)
+    try {
+      const blob = await fn()
+      downloadBlob(blob, filename)
+      setMsg('تم التنزيل')
+    } catch (err) {
+      setMsg(err.message || 'فشل التنزيل')
+    } finally {
+      setBusy('')
     }
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
   return (
@@ -51,31 +44,34 @@ export default function AdminTables() {
         <div className="grid sm:grid-cols-3 gap-3 mt-8">
           <button
             type="button"
-            onClick={() => download('/tables/menu_qr/', 'baladi-menu-qr.png')}
-            className="rounded-2xl bg-cream-muted px-4 py-4 font-bold hover:bg-cream transition"
+            disabled={Boolean(busy)}
+            onClick={() => run('qr', async () => generateQrPngBlob(menuUrl), 'baladi-menu-qr.png')}
+            className="rounded-2xl bg-cream-muted px-4 py-4 font-bold hover:bg-cream transition disabled:opacity-60"
           >
-            تنزيل QR عالي الجودة
+            {busy === 'qr' ? '...' : 'تنزيل QR عالي الجودة'}
           </button>
           <button
             type="button"
-            onClick={() => download('/tables/menu_card/', 'baladi-menu-qr-card.png')}
-            className="rounded-2xl bg-amber/40 px-4 py-4 font-bold hover:bg-amber/55 transition"
+            disabled={Boolean(busy)}
+            onClick={() => run('card', generateMenuCardPngBlob, 'baladi-menu-qr-card.png')}
+            className="rounded-2xl bg-amber/40 px-4 py-4 font-bold hover:bg-amber/55 transition disabled:opacity-60"
           >
-            بطاقة طباعة PNG
+            {busy === 'card' ? '...' : 'بطاقة طباعة PNG'}
           </button>
           <button
             type="button"
-            onClick={() => download('/tables/menu_pdf/', 'baladi-menu-qr-cards.pdf')}
-            className="rounded-2xl bg-ink text-cream px-4 py-4 font-bold hover:bg-ink-soft transition"
+            disabled={Boolean(busy)}
+            onClick={() => run('pdf', generateMenuPdfBlob, 'baladi-menu-qr-cards.pdf')}
+            className="rounded-2xl bg-ink text-cream px-4 py-4 font-bold hover:bg-ink-soft transition disabled:opacity-60"
           >
-            PDF للطباعة (4 بطاقات A6)
+            {busy === 'pdf' ? '...' : 'PDF للطباعة (4 بطاقات A6)'}
           </button>
         </div>
 
         <ul className="mt-6 text-sm text-smoke space-y-2 list-disc pr-5">
-          <li>حجم البطاقة للطباعة: 105×148 مم (A6) بدقة 300 DPI</li>
+          <li>حجم البطاقة للطباعة: 105×148 مم (A6)</li>
           <li>اطبع على ورق سميك أو ضع البطاقة داخل حامل طاولة</li>
-          <li>نفس الرمز يُستخدم على كل الطاولات — لا حاجة لرمز مختلف لكل طاولة</li>
+          <li>نفس الرمز يُستخدم على كل الطاولات</li>
         </ul>
       </div>
     </div>

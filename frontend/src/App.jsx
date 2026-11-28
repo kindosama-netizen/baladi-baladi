@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import PublicLayout from './layouts/PublicLayout'
 import HomePage from './pages/HomePage'
@@ -13,7 +14,14 @@ import AdminSettings from './pages/admin/AdminSettings'
 import { isLoggedIn } from './api/client'
 
 function Protected({ children }) {
-  if (!isLoggedIn()) return <Navigate to="/admin/login" replace />
+  const [ok, setOk] = useState(null)
+  useEffect(() => {
+    isLoggedIn().then(setOk)
+  }, [])
+  if (ok === null) {
+    return <div className="min-h-screen grid place-items-center text-smoke">جاري التحقق...</div>
+  }
+  if (!ok) return <Navigate to="/admin/login" replace />
   return children
 }
 

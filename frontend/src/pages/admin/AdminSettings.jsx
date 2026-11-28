@@ -79,7 +79,7 @@ export default function AdminSettings() {
         <Field label="رابط تضمين الخريطة (iframe)" value={form.maps_embed_url} onChange={(v) => setForm({ ...form, maps_embed_url: v })} />
         <div className="md:col-span-2">
           <Field
-            label="رابط الموقع العام (لـ QR Codes) — مثال: https://baladi-baladi.onrender.com"
+            label="رابط الموقع العام (لـ QR Codes) — مثال: https://baladi.onrender.com"
             value={form.public_site_url || ''}
             onChange={(v) => setForm({ ...form, public_site_url: v })}
           />

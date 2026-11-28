@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login, isLoggedIn } from '../../api/client'
-import { useEffect } from 'react'
 
 export default function AdminLogin() {
   const navigate = useNavigate()
@@ -11,7 +10,9 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (isLoggedIn()) navigate('/admin', { replace: true })
+    isLoggedIn().then((ok) => {
+      if (ok) navigate('/admin', { replace: true })
+    })
   }, [navigate])
 
   async function onSubmit(e) {
@@ -22,7 +23,7 @@ export default function AdminLogin() {
       await login(username, password)
       navigate('/admin')
     } catch (err) {
-      setError(err.response?.data?.detail || 'فشل تسجيل الدخول')
+      setError(err.response?.data?.detail || err.message || 'فشل تسجيل الدخول')
     } finally {
       setLoading(false)
     }
@@ -36,12 +37,13 @@ export default function AdminLogin() {
           <p className="text-smoke text-sm mt-1">دخول لوحة التحكم</p>
         </div>
         {error && <div className="mb-4 text-sm text-ember bg-ember/10 rounded-xl px-3 py-2">{String(error)}</div>}
-        <label className="block text-sm mb-1 font-bold">اسم المستخدم</label>
+        <label className="block text-sm mb-1 font-bold">البريد أو اسم المستخدم</label>
         <input
           className="w-full mb-4 rounded-xl border border-cream-muted px-4 py-3 bg-white"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
+          placeholder="admin"
           required
         />
         <label className="block text-sm mb-1 font-bold">كلمة المرور</label>
